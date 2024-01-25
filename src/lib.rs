@@ -1039,7 +1039,9 @@ key: key1, value: def
         
 
         let mut settings = Settings::new_locale_messages(&IT_SETTINGS_MESSAGES);
-        assert_eq!(Result::Err("Errore apertura file di settings: 'goofy.ini': 'Impossibile trovare il file specificato. (os error 2)'".to_string()), settings.load("goofy.ini"));
+        let ioerror = File::open("goofy.ini").err().unwrap();
+        let os_message = format!("{:#}", ioerror);
+        assert_eq!(Result::Err(format!("Errore apertura file di settings: 'goofy.ini': '{}'", os_message)), settings.load("goofy.ini"));
         assert_eq!(Result::Err("Manca il tag di inizio sezione '[' alla linea '7' del file di settings: 'test_files/missing_start_section_tag.ini'".to_string()), settings.load("test_files/missing_start_section_tag.ini"));
         assert_eq!(Result::Err("Manca il tag di fine sezione ']' alla linea '11' del file di settings: 'test_files/missing_end_section_tag.ini'".to_string()), settings.load("test_files/missing_end_section_tag.ini"));
         assert_eq!(Result::Err("Manca il tag di assegnazione '=' alla linea '3' del file di settings: 'test_files/missing_assign_tag.ini'".to_string()), settings.load("test_files/missing_assign_tag.ini"));
