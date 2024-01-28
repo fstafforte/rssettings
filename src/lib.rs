@@ -86,7 +86,7 @@ impl PartialEq for Section {
 // Section struction implementation
 impl Section {
     // Associated function to create e new Section
-    // [name]: Section name
+    // * `name` -  A string slice that holds the name of the Section
     fn new(name: &str) -> Self {
         Self {
             name: name.to_string(),
@@ -98,10 +98,6 @@ impl Section {
     // if key already exists Result::Err contains
     // the previous line where the duplicated
     // key has been found
-    // [&self]: Section constant reference
-    // [key]: Key name
-    // [vaue]: Value associated to the [key]
-    // [line_cnt]: Settings file line where the key/value pair has been previously found 
     fn add(&mut self, key: String, value: String, line_cnt: usize) -> StdResult<(), usize> {
         let mut iter = self.values.iter_mut();
         while let Some(key_value) = iter.next() {
@@ -114,8 +110,6 @@ impl Section {
     }
 
     // Resturns if [key] found a reference to key's associated value else Option::None
-    // [&self]: Section constant reference
-    // [key]: key name
     fn get(&self, key: &str) -> Option<&String> {
         let mut iter = self.values.iter();
         while let Some(key_value) = iter.next() {
@@ -129,9 +123,6 @@ impl Section {
     // Sets the new associated value of [key]
     // Returns true if [key] has been found 
     // false otherwise.   
-    // [&mut self]: Section mutable reference
-    // [key]: key name
-    // [value]:: new key's associated value
     fn set(&mut self, key: &str, value: String) -> bool {
         let mut iter = self.values.iter_mut();
         while let Some(key_value) = iter.next() {
@@ -165,7 +156,7 @@ const ALREADY_INITIALIZED_MESSAGE_IDX: usize = READING_FILE_ERROR_MESSAGE_IDX + 
 // constant representing the number of errors that rssettings crate can return
 pub const MESSAGES_NUMBER: usize = ALREADY_INITIALIZED_MESSAGE_IDX + 1usize;
 
-// Table of default english language errors
+/// Table of default english language errors
 const SETTINGS_MESSAGES: [&str; MESSAGES_NUMBER] = [
     "Error opening settings file: '{}': '{}'",
     "Missing start section tag '{}' at line '{}' of settings file: '{}'",
@@ -278,6 +269,8 @@ impl Settings {
     /// }
     /// ```
     /// 
+    ///  * `settings_messages` -  A string slice vector that holds the setting error messages
+    /// 
     pub fn new_locale_messages(settings_messages: &[&str; MESSAGES_NUMBER]) -> Self {
         let mut settings = Self {
             path: String::from(""),
@@ -314,8 +307,9 @@ impl Settings {
     /// }
     /// ```
     /// 
-    /// [&mut self] Settings mutable reference
-    /// ['path'] settings file path AsRef of std::path::Path
+    ///  * `self` -  An mutable reference to Setting struct
+    ///  * `path` -  A Path as reference to the settings file to load
+    /// 
     pub fn load<P>(&mut self, path: P) -> StdResult<(), String> where P: AsRef<Path> {
         if self.is_initialize() {
             return StdResult::Err(
@@ -357,8 +351,8 @@ impl Settings {
     ///     }
     /// }
     /// ```
+    ///  * `self` -  A mutable reference to Setting struct
     /// 
-    /// ['&self'] Settings immutable reference
     pub fn save(&self) -> StdResult<(), String> {
         let mut line_texts: Vec<String> = vec![];
         if self.is_initialize() {
@@ -455,10 +449,11 @@ impl Settings {
     /// }
     /// ```
     /// 
-    /// ['&self'] Settings immutable reference
-    /// [&str section_name] section name
-    /// [&str key] key name
-    /// [T default_value] default value in case of error
+    ///  * `self` -  An immutable reference to Setting struct
+    ///  * `section_name` -  A string slice that holds the name of the Section
+    ///  * `key` -  A string slice that holds the name of the key inside the Section
+    ///  * `T` -  A default generic value returned in case an error occurs
+    ///  
     pub fn get<T: FromStr + Display>(&self, section_name: &str, key: &str, default_value: T) -> SettingsValue<T> where <T as FromStr>::Err: Debug {
         let mut result = SettingsValue {value: default_value, error: String::from("")};
 
@@ -521,6 +516,11 @@ impl Settings {
     /// }
     /// ```
     /// 
+    ///  * `self` -  A mutable reference to Setting struct
+    ///  * `section_name` -  A string slice that holds the name of the Section
+    ///  * `key` -  A string slice that holds the name of the key inside the Section
+    ///  * `T` -  A new value for the key 
+    /// 
     pub fn set<T: Display>(&mut self, section_name: &str, key: &str, value: T) -> StdResult<(), String> {
         if let Some(section) = self.get_section_mut(section_name) {
             if !section.set(key, value.to_string()) {
@@ -537,14 +537,84 @@ impl Settings {
         }
     }
 
+    /// Returns if a section exists
+    /// 
+    /// # Examples
+    /// ```
+    /// use rssettings::Settings;
+    /// 
+    /// fn main() {
+    ///     let mut settings = Settings::new();
+    ///     match settings.load("test_files/settings.ini") {
+    ///         Result::Ok(()) => {
+    ///             if settings.section_exists("GOOFY") {
+    ///                 println!("[GOOFY] exists"); 
+    ///             } else {
+    ///                 eprintln!("[GOOFY] does not exist");
+    ///             }
+    ///         },
+    ///         Result::Err(error) => {
+    ///             eprintln!("{}", error);
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    ///  * `self` -  An immutable reference to Setting struct
+    ///  * `section_name` -  A string slice that holds the name of the Section
+    /// 
+    pub fn section_exists(&self, section_name: &str) -> bool {
+        let mut result = false;
+        if let Some(_) = self.get_section(section_name) {
+            result = true;
+        }
+        result
+    }
+
+    /// Returns if a key exists in a specific section
+    /// # Examples
+    /// ```
+    /// use rssettings::Settings;
+    /// 
+    /// fn main() {
+    ///     let mut settings = Settings::new();
+    ///     match settings.load("test_files/settings.ini") {
+    ///         Result::Ok(()) => {
+    ///             if settings.key_exists("GLOBAL", "enabled") {
+    ///                 println!("key 'enabled' in section 'GLOBAL' exists"); 
+    ///             } else {
+    ///                 eprintln!("key 'enabled' in section 'GLOBAL' does not exist"); 
+    ///             }
+    ///         },
+    ///         Result::Err(error) => {
+    ///             eprintln!("{}", error);
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    /// 
+    ///  * `self` -  An immutable reference to Setting struct
+    ///  * `section_name` -  A string slice that holds the name of the Section
+    ///  * `key` -  A string slice that holds the name of the key inside the Section
+    /// 
+    pub fn key_exists(&self, section_name: &str, key: &str) -> bool {
+        let mut result = false;
+        if let Some(section) = self.get_section(section_name) {
+            if let Some(_) = section.get(key) {
+                result = true;
+            }
+        }
+        result
+    }
+
+
     // Private methods & functions
 
     // This method is in charge to load the file passed to the public method load
     // Returns std::result::Result::Ok(()) in case file has been succesufuly loaded 
     // otherwhise std::result::Result::Err(erroe: String) error contains the reason why 
     // file has not been loaded
-    // [&mut self] Settings mutable reference
-    // [path] settings file path AsRef of std::path::Path 
+    //  * `self` -  A mutable reference to Setting struct
+    //  * `path` -  A Path as reference to the settings file to load
     fn load_private<P>(&mut self, path: P) -> StdResult<(), String> where P: AsRef<Path> {
 
 
@@ -598,7 +668,7 @@ impl Settings {
 
     // This method is privatly used to clean Setting stucture content
     // it is used when the load methos fails
-    // [&mut self] Settings mutable reference
+    //  * `self` -  A mutable reference to Setting struct
     fn unload(&mut self) {
         let mut iter = self.sections.iter_mut();
         while let Some(section) = iter.next() {
@@ -611,11 +681,10 @@ impl Settings {
     // This method format the error message string in base to the message index
     // and parameters passed as a vector of string reference
     // Returns the formatted error message
-    // [&sef] Settings immutable reference
-    // [message_idx] Message index 
-    // [params] Vector containing parameters as String reference that must be places
     // in the message placeholders '{}'
-    // 
+    //  * `self` -  An immutable reference to Setting struct
+    //  * `message_idx` -  Message index to format
+    //  * `params` -  A vector od String reference to format the message
     fn format_message(&self, message_idx: usize, params: Vec<&String>) -> String {
         let mut message = self.messages_table[message_idx].clone();
         let mut i = 0usize;
@@ -633,18 +702,16 @@ impl Settings {
     // Returns if the Setting is already initialized or not
     // The Settings is initialized if the settings file has beee
     // successfuly loaded and so the path has been set
-    // [&sef] Settings immutable reference
-    //
+    //  * `self` -  An immutable reference to Setting struct
     fn is_initialize(&self) -> bool {
         0 != self.path.len()
     }
 
     // Returns the setting file line type, see LineType enumeration
-    // [&sef] Settings immutable reference
-    // [line_text] Reference to the line text to analyze
-    // [line_cnt] Reference to the line counter (to return the error mesage containing the bad line number) 
-    // [settings_file] Reference to the settings file path (to return the error mesage containing the settings file path)
-    // 
+    //  * `self` -  An immutable reference to Setting struct
+    //  * `line_text` -  A reference to the setting's file text line to anylize 
+    //  * `line_cnt` -  A reference to text line counter
+    //  * `settings_file` -  A string slice that holds the name of the setting file path 
     fn line_type(&self, line_text: &String, line_cnt: &usize, settings_file: &str) -> LineType {
         let mut trimmed_line = line_text.clone();
         if let Some(index) = trimmed_line.find(COMMENT_TAG) {
@@ -705,12 +772,11 @@ impl Settings {
     }
 
     // Adds a key/value pair to a Section
-    // [&mut self] Settings mutable reference
-    // [section_name] Section name reference
-    // [key] Key name 
-    // [value] Value relative to the key
-    // [line_cnt] Settings file key/value pair Line number 
-    // [settings_file] Settibg file path reference
+    //  * `self` -  A mutable reference to Setting struct
+    //  * `section_name` - A string slice that holds the name of the Section
+    //  * `key` -  A string slice that holds the name of the inside the Section
+    //  * `line_cnt` -  A reference to text line counter where the key has been found
+    //  * `settings_file` -  A string slice that holds the name of the setting file path 
     fn add_to_section(&mut self, section_name: &String, key: String, value: String, line_cnt: usize, settings_file: &str) -> StdResult<(), String> {
         let mut iter = self.sections.iter_mut();
         while let Some(section) = iter.next() {
@@ -735,9 +801,8 @@ impl Settings {
 
     // Returns a core::option::Option::Some() containing an immutable reference to Section
     // if the searched section name exists, None if not
-    // [&self] Settings immutable reference
-    // [section_name] Section name reference
-    //
+    //  * `self` -  An immutable reference to Setting struct
+    //  * `section_name` - A string slice that holds the name of the Section
     fn get_section(&self, section_name: &str) -> Option<&Section> {
         let mut iter = self.sections.iter();
         while let Some(section) = iter.next() {
@@ -750,9 +815,8 @@ impl Settings {
 
     // Returns a core::option::Option::Some() containing an mutable reference to Section
     // if the searched section name exists, None if not
-    // [&mut self] Settings mutable reference
-    // [section_name] Section name reference
-    //
+    //  * `self` -  A mutable reference to Setting struct
+    //  * `section_name` - A string slice that holds the name of the Section
     fn get_section_mut(&mut self, section_name: &str) -> Option<&mut Section> {
         let mut iter = self.sections.iter_mut();
         while let Some(section) = iter.next() {
@@ -1018,6 +1082,17 @@ key: key1, value: def
         let _ = original_settings.load("test_files/original_settings.ini");
 
         assert!(settings.sections == original_settings.sections);
+    }
+
+
+    #[test]
+    fn section_or_key_exists() {
+        let mut settings = Settings::new();
+        assert_eq!(StdResult::Ok(()), settings.load("test_files/settings.ini"));
+        assert_eq!(false, settings.section_exists("GOOFY"));
+        assert_eq!(true, settings.section_exists(GLOBAL_SECTION));
+        assert_eq!(false, settings.key_exists(GLOBAL_SECTION, "enabled"));
+        assert_eq!(true, settings.key_exists(GLOBAL_SECTION, "string_value"));
     }
 
     #[test]
